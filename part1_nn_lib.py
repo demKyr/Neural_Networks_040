@@ -226,8 +226,8 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._W = None
-        self._b = None
+        self._W = np.array(n_in * [xavier_init(n_out)])
+        self._b = xavier_init(n_out)
 
         self._cache_current = None
         self._grad_W_current = None
@@ -253,8 +253,10 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        if(np.ndim(x)==1):
+            x = np.array([x])
+        self._cache_current = x
+        return(x @ self._W + self._b)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -276,8 +278,9 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        self._grad_W_current = np.transpose(self._cache_current) @ grad_z
+        self._grad_b_current = np.ones(np.shape(grad_z)[0]) @ grad_z
+        return(grad_z @ np.transpose(self._W))
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -293,8 +296,8 @@ class LinearLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        self._W = self._W - learning_rate * self._grad_W_current
+        self._b = self._b - learning_rate * self._grad_b_current
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -636,4 +639,51 @@ def example_main():
 
 
 if __name__ == "__main__":
-    example_main()
+    # example_main()
+    ####################################################################################
+    # print(xavier_init(10))
+    # arr = np.array([xavier_init(20)] * 10)
+    # print(np.shape(arr))
+    # print(arr)
+    # n_in = 3
+    # n_out = 2
+    # x = np.array([1,2,3])
+    # x = np.array([np.array([1,2,3])]*4)
+
+    # W = np.array([np.array([4,8])] * n_in)
+    # b = xavier_init(n_out)
+
+    # print(x)
+    # print(W)
+    # print(b)
+    # print(x @ W + b)
+    # print(W @ np.transpose(x))
+    # print(np.transpose(x) @ W + b)
+    # print(np.transpose(W) @ x + b)
+    # print(np.transpose(x) @ W + b)
+    ####################################################################################
+    # inputs_1 = np.array([np.array([1,2,3])])
+    # inputs_2 = np.array([1,2,3])
+    # inputs_3 = np.array([inputs_2])
+    # print(type(inputs_1),np.ndim(inputs_1),np.shape(inputs_1))
+    # print(type(inputs_2),np.ndim(inputs_2),np.shape(inputs_2))
+    # print(type(inputs_3),np.ndim(inputs_3),np.shape(inputs_3))
+
+    # TESTING WITH BATCH SIZE > 1
+    inputs = np.array([np.array([1,2,3])]*4)
+    grad_loss_wrt_outputs = np.array([np.ones(42)] * 4)
+    # TESTING WITH BATCH SIZE = 1
+    # inputs = np.array([1,2,3])
+    # grad_loss_wrt_outputs = np.array([np.ones(42)])
+
+    learning_rate = 0.01
+    layer = LinearLayer(n_in=3, n_out=42)
+    # `inputs` shape: (batch_size, 3)
+    # `outputs` shape: (batch_size, 42)
+    outputs = layer(inputs)
+    # `grad_loss_wrt_outputs` shape: (batch_size, 42)
+    # `grad_loss_wrt_inputs` shape: (batch_size, 3)
+    grad_loss_wrt_inputs = layer.backward(grad_loss_wrt_outputs)
+    layer.update_params(learning_rate)
+    ####################################################################################
+
