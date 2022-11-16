@@ -120,8 +120,11 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        def sigmoid(in_x):
+            return  1 / (1 + np.exp(-in_x))
 
+        self._cache_current = np.vectorize(sigmoid)(x)
+        return(self._cache_current)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -143,8 +146,7 @@ class SigmoidLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        return(grad_z * self._cache_current * (1 - self._cache_current))
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -177,8 +179,11 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        def relu(in_x):
+            return np.maximum(in_x,0)
 
+        self._cache_current = x
+        return(np.vectorize(relu)(x))
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -200,8 +205,10 @@ class ReluLayer(Layer):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        def relu_grad(in_x):
+            return (1 if in_x > 0 else 0)
 
+        return(grad_z * np.vectorize(relu_grad)(self._cache_current))
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -316,8 +323,8 @@ class MultiLayerNetwork(object):
         Arguments:
             - input_dim {int} -- Number of features in the input (excluding 
                 the batch dimension).
-            - neurons {list} -- Number of neurons in each linear layer 
-                represented as a list. The length of the list determines the 
+            - neurons {list} -- Number of neurons in each linear layer 
+                represented as a list. The length of the list determines the 
                 number of linear layers.
             - activations {list} -- List of the activation functions to apply 
                 to the output of each linear layer.
@@ -329,7 +336,15 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._layers = None
+        self._layers = []
+        input_size = input_dim
+        for (lin_layer_output_size, activation_fun) in zip(neurons, activations):
+            self._layers.append(LinearLayer(n_in=input_size, n_out=lin_layer_output_size))
+            if(activation_fun == "relu"):
+                self._layers.append(ReluLayer())
+            elif(activation_fun == "sigmoid"):
+                self._layers.append(SigmoidLayer())
+            input_size = lin_layer_output_size
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -348,7 +363,12 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        return np.zeros((1, self.neurons[-1])) # Replace with your own code
+        for layer in self._layers:
+            output = layer(x)
+            print(output)
+            x = output
+        return output
+        # return np.zeros((1, self.neurons[-1])) # Replace with your own code
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -372,8 +392,10 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        for layer in reversed(self._layers):
+            grad_loss_wrt_inputs = layer.backward(grad_z)
+            grad_z = grad_loss_wrt_inputs
+        return grad_loss_wrt_inputs
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -389,8 +411,8 @@ class MultiLayerNetwork(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        for layer in self._layers[::2]:
+            layer.update_params(learning_rate)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -670,20 +692,84 @@ if __name__ == "__main__":
     # print(type(inputs_3),np.ndim(inputs_3),np.shape(inputs_3))
 
     # TESTING WITH BATCH SIZE > 1
-    inputs = np.array([np.array([1,2,3])]*4)
-    grad_loss_wrt_outputs = np.array([np.ones(42)] * 4)
-    # TESTING WITH BATCH SIZE = 1
-    # inputs = np.array([1,2,3])
-    # grad_loss_wrt_outputs = np.array([np.ones(42)])
+    # inputs = np.array([np.array([1,2,3])]*4)
+    # grad_loss_wrt_outputs = np.array([np.ones(42)] * 4)
+    # # TESTING WITH BATCH SIZE = 1
+    # # inputs = np.array([1,2,3])
+    # # grad_loss_wrt_outputs = np.array([np.ones(42)])
 
-    learning_rate = 0.01
-    layer = LinearLayer(n_in=3, n_out=42)
-    # `inputs` shape: (batch_size, 3)
-    # `outputs` shape: (batch_size, 42)
-    outputs = layer(inputs)
-    # `grad_loss_wrt_outputs` shape: (batch_size, 42)
-    # `grad_loss_wrt_inputs` shape: (batch_size, 3)
-    grad_loss_wrt_inputs = layer.backward(grad_loss_wrt_outputs)
-    layer.update_params(learning_rate)
+    # # learning_rate = 0.01
+    # layer = LinearLayer(n_in=3, n_out=42)
+    # # `inputs` shape: (batch_size, 3)
+    # # `outputs` shape: (batch_size, 42)
+    # outputs = layer(inputs)
+    # # `grad_loss_wrt_outputs` shape: (batch_size, 42)
+    # # `grad_loss_wrt_inputs` shape: (batch_size, 3)
+    # grad_loss_wrt_inputs = layer.backward(grad_loss_wrt_outputs)
+    # layer.update_params(learning_rate)
     ####################################################################################
+
+
+    # # TESTING OF SIGMOID LAYER
+    # inputs = np.array([np.array([1,2,3])]*4)
+    # grad_loss_wrt_outputs = np.array([np.ones(3)] * 4)
+    # sig_layer = SigmoidLayer()
+    # outputs = sig_layer(inputs)
+    # grad_loss_wrt_inputs = sig_layer.backward(grad_loss_wrt_outputs)
+    # print(outputs)
+    # print(grad_loss_wrt_inputs)
+
+    # # TESTING OF RELU LAYER
+    # inputs = np.array([np.array([1,-2,3])]*4)
+    # grad_loss_wrt_outputs = np.array([np.ones(3)] * 4)
+    # relu_layer = ReluLayer()
+    # outputs = relu_layer(inputs)
+    # grad_loss_wrt_inputs = relu_layer.backward(grad_loss_wrt_outputs)
+    # print(outputs)
+    # print(grad_loss_wrt_inputs)
+    ####################################################################################
+
+
+    # # # TESTING WITH BATCH SIZE > 1
+    # inputs = np.array([np.array([1,2,3,4])]*4)
+    # grad_loss_wrt_outputs = np.array([np.ones(2)] * 4)
+    # # # # TESTING WITH BATCH SIZE = 1
+    # # # inputs = np.array([1,2,3])
+    # # # grad_loss_wrt_outputs = np.array([np.ones(42)])
+
+    # learning_rate = 0.01
+    # # The following command will create a MultiLayerNetwork object
+    # # consisting of the following stack of layers:
+    # # - LinearLayer(4, 16)
+    # # - ReluLayer()
+    # # - LinearLayer(16, 2)
+    # # - SigmoidLayer()
+    # network = MultiLayerNetwork(
+    # input_dim=4, neurons=[16, 2], activations=["relu", "sigmoid"]
+    # )
+    # # `inputs` shape: (batch_size, 4)
+    # # `outputs` shape: (batch_size, 2)
+    # outputs = network(inputs)
+    # # `grad_loss_wrt_outputs` shape: (batch_size, 2)
+    # # `grad_loss_wrt_inputs` shape: (batch_size, 4)
+    # grad_loss_wrt_inputs = network.backward(grad_loss_wrt_outputs)
+    # network.update_params(learning_rate)
+    # # print(outputs)
+    # print(grad_loss_wrt_inputs)
+
+
+
+
+    # inputs = np.array([np.array([1,-2,3,-4])]*4)
+    # grad_loss_wrt_outputs = np.array([np.ones(2)] * 4)
+    # learning_rate = 0.01
+    # network = MultiLayerNetwork(
+    #     input_dim=4, neurons=[2], activations=["sigmoid"]
+    # )
+    # print(inputs)
+    # outputs = network(inputs)
+    # grad_loss_wrt_inputs = network.backward(grad_loss_wrt_outputs)
+    # network.update_params(learning_rate)
+    # print(outputs)
+    # print(grad_loss_wrt_inputs)
 
