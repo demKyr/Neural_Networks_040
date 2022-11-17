@@ -472,7 +472,10 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        self._loss_layer = None
+        if(self.loss_fun == "mse"):
+            self._loss_layer = MSELossLayer()
+        elif(self.loss_fun == "cross_entropy"):
+            self._loss_layer = CrossEntropyLossLayer()
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -495,8 +498,9 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        random_shuffle = np.arange(len(input_dataset))
+        np.random.shuffle(random_shuffle)
+        return(input_dataset[random_shuffle],target_dataset[random_shuffle])
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -524,8 +528,17 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        for i in range(self.nb_epoch):
+            if self.shuffle_flag:
+                input_dataset, target_dataset = self.shuffle(input_dataset, target_dataset)
+            input_dataset_batches = np.array_split(input_dataset, input_dataset.shape[0] / self.batch_size)
+            target_dataset_batches = np.array_split(target_dataset, target_dataset.shape[0] / self.batch_size)
+            for (input_dataset_batch,target_dataset_batch) in zip(input_dataset_batches,target_dataset_batches):
+                output_pred_batch = self.network(input_dataset_batch)
+                loss = self._loss_layer.forward(output_pred_batch, target_dataset_batch)
+                grad_loss_wrt_outputs = self._loss_layer.backward()
+                grad_loss_wrt_inputs = self.network.backward(grad_loss_wrt_outputs)
+                self.network.update_params(self.learning_rate)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -547,8 +560,8 @@ class Trainer(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        output_pred = self.network(input_dataset)
+        return(self._loss_layer.forward(output_pred, target_dataset))
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -661,7 +674,7 @@ def example_main():
 
 
 if __name__ == "__main__":
-    # example_main()
+    example_main()
     ####################################################################################
     # print(xavier_init(10))
     # arr = np.array([xavier_init(20)] * 10)
@@ -694,11 +707,11 @@ if __name__ == "__main__":
     # TESTING WITH BATCH SIZE > 1
     # inputs = np.array([np.array([1,2,3])]*4)
     # grad_loss_wrt_outputs = np.array([np.ones(42)] * 4)
-    # # TESTING WITH BATCH SIZE = 1
-    # # inputs = np.array([1,2,3])
-    # # grad_loss_wrt_outputs = np.array([np.ones(42)])
+    # TESTING WITH BATCH SIZE = 1
+    # inputs = np.array([1,2,3])
+    # grad_loss_wrt_outputs = np.array([np.ones(42)])
 
-    # # learning_rate = 0.01
+    # learning_rate = 0.01
     # layer = LinearLayer(n_in=3, n_out=42)
     # # `inputs` shape: (batch_size, 3)
     # # `outputs` shape: (batch_size, 42)
@@ -731,11 +744,11 @@ if __name__ == "__main__":
 
 
     # # # TESTING WITH BATCH SIZE > 1
-    # inputs = np.array([np.array([1,2,3,4])]*4)
-    # grad_loss_wrt_outputs = np.array([np.ones(2)] * 4)
-    # # # # TESTING WITH BATCH SIZE = 1
-    # # # inputs = np.array([1,2,3])
-    # # # grad_loss_wrt_outputs = np.array([np.ones(42)])
+    # # inputs = np.array([np.array([1,2,3,4])]*4)
+    # # grad_loss_wrt_outputs = np.array([np.ones(2)] * 4)
+    # # TESTING WITH BATCH SIZE = 1
+    # inputs = np.array([1,2,3,4])
+    # grad_loss_wrt_outputs = np.array([np.ones(2)])
 
     # learning_rate = 0.01
     # # The following command will create a MultiLayerNetwork object
@@ -745,7 +758,7 @@ if __name__ == "__main__":
     # # - LinearLayer(16, 2)
     # # - SigmoidLayer()
     # network = MultiLayerNetwork(
-    # input_dim=4, neurons=[16, 2], activations=["relu", "sigmoid"]
+    #     input_dim=4, neurons=[16, 2], activations=["relu", "sigmoid"]
     # )
     # # `inputs` shape: (batch_size, 4)
     # # `outputs` shape: (batch_size, 2)
@@ -760,8 +773,13 @@ if __name__ == "__main__":
 
 
 
-    # inputs = np.array([np.array([1,-2,3,-4])]*4)
+    # # TESTING WITH BATCH SIZE > 1
+    # inputs = np.array([np.array([1,2,3,4])]*4)
     # grad_loss_wrt_outputs = np.array([np.ones(2)] * 4)
+    # # TESTING WITH BATCH SIZE = 1
+    # inputs = np.array([1,2,3,4])    
+    # grad_loss_wrt_outputs = np.array([np.ones(2)])
+
     # learning_rate = 0.01
     # network = MultiLayerNetwork(
     #     input_dim=4, neurons=[2], activations=["sigmoid"]
