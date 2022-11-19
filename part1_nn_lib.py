@@ -365,7 +365,6 @@ class MultiLayerNetwork(object):
         #######################################################################
         for layer in self._layers:
             output = layer(x)
-            print(output)
             x = output
         return output
         # return np.zeros((1, self.neurons[-1])) # Replace with your own code
@@ -585,8 +584,8 @@ class Preprocessor(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
-
+        self.min_val = data.min(axis=0)
+        self.max_val = data.max(axis=0)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -604,8 +603,15 @@ class Preprocessor(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        def min_max_norm(x,col_id):
+            return ((x - self.min_val[col_id]) / (self.max_val[col_id] - self.min_val[col_id]))
 
+        data = data.astype(float)
+
+        for col_id in range(data.shape[1]):
+            data[:,col_id] = np.vectorize(min_max_norm)(data[:,col_id], col_id)
+        
+        return(data)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -623,8 +629,15 @@ class Preprocessor(object):
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        pass
+        def min_max_norm_revert(x,col_id):
+            return (x * (self.max_val[col_id] - self.min_val[col_id])  +  self.min_val[col_id])     
 
+        data = data.astype(np.float)
+
+        for col_id in range(data.shape[1]):
+            data[:,col_id] = np.vectorize(min_max_norm_revert)(data[:,col_id], col_id)
+        
+        return(data)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -790,4 +803,18 @@ if __name__ == "__main__":
     # network.update_params(learning_rate)
     # print(outputs)
     # print(grad_loss_wrt_inputs)
+
+
+    # # PREPROCESSOR TESTER
+    # arr = np.arange(32).reshape((8, 4))
+
+    # prep_input = Preprocessor(arr)
+    # x_pre = prep_input.apply(arr)
+    # x_rev = prep_input.revert(x_pre)
+
+    # print(arr)
+    # print(x_pre)
+    # print(x_rev)
+
+
 
