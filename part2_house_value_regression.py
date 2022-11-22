@@ -28,26 +28,29 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
         X, _ = self._preprocessor(x, training = True)
+        print("init preprocessing",X.describe())
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
 
+        global Net
 
         class Net(torch.nn.Module):
             def __init__(self):
                 super().__init__()
                 # self.layer_l1 = torch.nn.Linear(self.input_size, self.output_size) # hidden->output weights
-                self.layer_l1 = torch.nn.Linear(9, 1) # hidden->output weights
-                # self.layer_l1 = torch.nn.Linear(9 , 5) # input->hidden weights
-                # self.layer_l2 = torch.nn.Linear(5 , 10) # input->hidden weights
-                # self.layer_l3 = torch.nn.Linear(10, 1) # hidden->output weights
+                # self.layer_l1 = torch.nn.Linear(9, 1) # hidden->output weights
+                self.layer_l1 = torch.nn.Linear(9, 14) # input->hidden weights
+                self.layer_l2 = torch.nn.Linear(14, 10) # input->hidden weights
+                self.layer_l3 = torch.nn.Linear(10, 1) # hidden->output weights
 
             def forward(self, x):
-                x = self.layer_l1(x) # output 
-                # x = torch.sigmoid(self.layer_l1(x)) # hidden layer with tanh activation
-                # x = torch.sigmoid(self.layer_l2(x)) # output with sigmoid activation
-                # x = self.layer_l3(x) # output 
+                # x = self.layer_l1(x) # output 
+                x = torch.nn.functional.relu(self.layer_l1(x)) # hidden layer with tanh activation
+                x = torch.nn.functional.relu(self.layer_l2(x)) # output with sigmoid activation
+                x = self.layer_l3(x) # output 
                 return x
+
 
         self.net = Net()
         print(self.net)
@@ -140,9 +143,10 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
-        learning_rate = 1e-4
+        print("fit preprocessing",X.describe())
+        learning_rate = 0.01
 
-        criterion = torch.nn.CrossEntropyLoss()
+        # criterion = torch.nn.CrossEntropyLoss()
         criterion = torch.nn.functional.mse_loss
         # optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
         optimizer = torch.optim.SGD(self.net.parameters(), lr=learning_rate)
@@ -226,7 +230,10 @@ class Regressor():
         #######################################################################
 
         X, _ = self._preprocessor(x, training = False) # Do not forget
-        pass
+        print("predict preprocessing",X.describe())
+        X_tensor = torch.tensor(X.values, dtype=torch.float)
+        preds = self.net(X_tensor)
+        return(preds.detach().numpy())
 
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -249,10 +256,16 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
-        X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        return 0 # Replace this code with your own
-
+        # X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
+        preds = self.predict(x)
+        criterion = torch.nn.functional.mse_loss
+        y_tensor = torch.tensor(y.values, dtype=torch.float)
+        preds_tensor = torch.tensor(preds, dtype=torch.float)
+        loss = criterion(preds_tensor, y_tensor)
+        print(y_tensor)
+        print(preds_tensor)
+        return(loss.item())
+        # return 0 # Replace this code with your own
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -323,51 +336,53 @@ def example_main():
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 10)
+    regressor = Regressor(x_train, nb_epoch = 1000)
     regressor.fit(x_train, y_train)
     save_regressor(regressor)
 
+    loaded_regressor = load_regressor()
+
     # Error
-    error = regressor.score(x_train, y_train)
+    error = loaded_regressor.score(x_train, y_train)
     print("\nRegressor error: {}\n".format(error))
 
 
 if __name__ == "__main__":
-    # example_main()
+    example_main()
 
-    # print(sys.executable)
+    # # print(sys.executable)
 
-    output_label = "median_house_value"
+    # output_label = "median_house_value"
 
-    # Use pandas to read CSV data as it contains various object types
-    # Feel free to use another CSV reader tool
-    # But remember that LabTS tests take Pandas DataFrame as inputs
-    data = pd.read_csv("housing.csv") 
+    # # Use pandas to read CSV data as it contains various object types
+    # # Feel free to use another CSV reader tool
+    # # But remember that LabTS tests take Pandas DataFrame as inputs
+    # data = pd.read_csv("housing.csv") 
 
-    # print(data.head())
+    # # print(data.head())
 
-    # Splitting input and output
-    x_train = data.loc[:, data.columns != output_label]
-    y_train = data.loc[:, [output_label]]
-
-
-    # Training
-    # This example trains on the whole available dataset. 
-    # You probably want to separate some held-out data 
-    # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 1000)
-    regressor.fit(x_train, y_train)
+    # # Splitting input and output
+    # x_train = data.loc[:, data.columns != output_label]
+    # y_train = data.loc[:, [output_label]]
 
 
-    X, Y = regressor._preprocessor(x_train, y = y_train, training = True) # Do not forget
-    X_tensor = torch.tensor(X.values, dtype=torch.float)
-    print(regressor.net(X_tensor))
-    print(Y)
+    # # Training
+    # # This example trains on the whole available dataset. 
+    # # You probably want to separate some held-out data 
+    # # to make sure the model isn't overfitting
+    # regressor = Regressor(x_train, nb_epoch = 100000)
+    # regressor.fit(x_train, y_train)
 
 
-    # save_regressor(regressor)
+    # X, Y = regressor._preprocessor(x_train, y = y_train, training = True) # Do not forget
+    # X_tensor = torch.tensor(X.values, dtype=torch.float)
+    # print(regressor.net(X_tensor))
+    # print(Y)
 
-    # # Error
-    # error = regressor.score(x_train, y_train)
-    # print("\nRegressor error: {}\n".format(error))
+
+    # # save_regressor(regressor)
+
+    # # # Error
+    # # error = regressor.score(x_train, y_train)
+    # # print("\nRegressor error: {}\n".format(error))
 
