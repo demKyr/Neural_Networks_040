@@ -2,6 +2,11 @@ import torch
 import pickle
 import numpy as np
 import pandas as pd
+import sys
+import torch.optim as optim
+
+pd.options.mode.chained_assignment = None  # default='warn'
+
 
 class Regressor():
 
@@ -22,12 +27,37 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
-        # Replace this code with your own
         X, _ = self._preprocessor(x, training = True)
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
+
+
+        class Net(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                # self.layer_l1 = torch.nn.Linear(self.input_size, self.output_size) # hidden->output weights
+                self.layer_l1 = torch.nn.Linear(9, 1) # hidden->output weights
+                # self.layer_l1 = torch.nn.Linear(9 , 5) # input->hidden weights
+                # self.layer_l2 = torch.nn.Linear(5 , 10) # input->hidden weights
+                # self.layer_l3 = torch.nn.Linear(10, 1) # hidden->output weights
+
+            def forward(self, x):
+                x = self.layer_l1(x) # output 
+                # x = torch.sigmoid(self.layer_l1(x)) # hidden layer with tanh activation
+                # x = torch.sigmoid(self.layer_l2(x)) # output with sigmoid activation
+                # x = self.layer_l3(x) # output 
+                return x
+
+        self.net = Net()
+        print(self.net)
+
+        # Replace this code with your own
+
+        self.trainset_min = []
+        self.trainset_max = []
+        self.trainset_mean = []
+
         return
 
         #######################################################################
@@ -56,11 +86,38 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
+        x_copy = x.copy()
 
-        # Replace this code with your own
+        # Mapping of string values to integers
+        ocean_proximity_mapping = { 'INLAND':0, '<1H OCEAN':1, 'NEAR OCEAN':2, 'NEAR BAY':3, 'ISLAND':4 }
+        x_copy["ocean_proximity"] = x_copy["ocean_proximity"].map(ocean_proximity_mapping)
+
+        # if using train set save normalization parameters
+        if(training):
+            self.trainset_min = x_copy.min()
+            self.trainset_max = x_copy.max()
+            self.trainset_mean = x_copy.mean()
+
+        # Fill any empty values with mean values as calculated using train set
+        for col in x_copy.columns:
+            x_copy[col].fillna(self.trainset_mean[col], inplace=True)
+
+        # Normalize values using training set's min and max values
+        def min_max_norm(x_in,col_id):
+            return ((x_in - self.trainset_min[col_id]) / (self.trainset_max[col_id] - self.trainset_min[col_id]))
+        for col_id,col_name in enumerate(x_copy.columns):
+            x_copy[col_name] = x_copy[col_name].apply(min_max_norm, col_id=col_id)
+
+        # for col in x.columns:
+        #     print(col)
+        #     print(x[col].unique())
+        # print(self.trainset_min)
+        # print(self.trainset_max)
+        # print(np.where(pd.isnull(x)))
+        # print(x["ocean_proximity"].unique())
+
         # Return preprocessed x and y, return None for y if it was None
-        return x, (y if isinstance(y, pd.DataFrame) else None)
-
+        return x_copy, (y if isinstance(y, pd.DataFrame) else None)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -79,12 +136,71 @@ class Regressor():
             self {Regressor} -- Trained model.
 
         """
-
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
+        learning_rate = 1e-4
+
+        criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.functional.mse_loss
+        # optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
+        optimizer = torch.optim.SGD(self.net.parameters(), lr=learning_rate)
+
+        # batch_size = 4
+        # trainloader = torch.utils.data.DataLoader(X, batch_size=batch_size,
+        #                                   shuffle=True, num_workers=2)
+        X_tensor = torch.tensor(X.values, dtype=torch.float)
+        Y_tensor = torch.tensor(Y.values, dtype=torch.float)
+
+        
+        for epoch in range(self.nb_epoch):
+            # running_loss = 0.0
+
+            # zero the parameter gradients
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            # print(X_tensor)
+            outputs = self.net(X_tensor)
+            # print(outputs)
+            loss = criterion(outputs, Y_tensor)
+            # print(Y_tensor)
+            loss.backward()
+            optimizer.step()
+
+            # print statistics
+            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))            
+            # running_loss += loss.item()
+            # if i % 2000 == 1999:    # print every 2000 mini-batches
+            #     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
+            #     running_loss = 0.0
+
+
+
+
+        # for epoch in range(2):  # loop over the dataset multiple times
+        #     running_loss = 0.0
+        #     for i, data in enumerate(trainloader):
+        #         # get the inputs; data is a list of [inputs, labels]
+        #         inputs, labels = data
+
+        #         # zero the parameter gradients
+        #         optimizer.zero_grad()
+
+        #         # forward + backward + optimize
+        #         outputs = self.net(inputs)
+        #         loss = criterion(outputs, labels)
+        #         loss.backward()
+        #         optimizer.step()
+
+        #         # print statistics
+        #         running_loss += loss.item()
+        #         if i % 2000 == 1999:    # print every 2000 mini-batches
+        #             print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
+        #             running_loss = 0.0
+
+
         return self
 
         #######################################################################
@@ -217,5 +333,41 @@ def example_main():
 
 
 if __name__ == "__main__":
-    example_main()
+    # example_main()
+
+    # print(sys.executable)
+
+    output_label = "median_house_value"
+
+    # Use pandas to read CSV data as it contains various object types
+    # Feel free to use another CSV reader tool
+    # But remember that LabTS tests take Pandas DataFrame as inputs
+    data = pd.read_csv("housing.csv") 
+
+    # print(data.head())
+
+    # Splitting input and output
+    x_train = data.loc[:, data.columns != output_label]
+    y_train = data.loc[:, [output_label]]
+
+
+    # Training
+    # This example trains on the whole available dataset. 
+    # You probably want to separate some held-out data 
+    # to make sure the model isn't overfitting
+    regressor = Regressor(x_train, nb_epoch = 1000)
+    regressor.fit(x_train, y_train)
+
+
+    X, Y = regressor._preprocessor(x_train, y = y_train, training = True) # Do not forget
+    X_tensor = torch.tensor(X.values, dtype=torch.float)
+    print(regressor.net(X_tensor))
+    print(Y)
+
+
+    # save_regressor(regressor)
+
+    # # Error
+    # error = regressor.score(x_train, y_train)
+    # print("\nRegressor error: {}\n".format(error))
 
