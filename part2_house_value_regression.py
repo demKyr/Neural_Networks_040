@@ -28,7 +28,7 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
         X, _ = self._preprocessor(x, training = True)
-        print("init preprocessing",X.describe())
+        # print("init preprocessing",X.describe())
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
@@ -39,15 +39,17 @@ class Regressor():
             def __init__(self):
                 super().__init__()
                 # self.layer_l1 = torch.nn.Linear(self.input_size, self.output_size) # hidden->output weights
-                # self.layer_l1 = torch.nn.Linear(9, 1) # hidden->output weights
-                self.layer_l1 = torch.nn.Linear(9, 14) # input->hidden weights
-                self.layer_l2 = torch.nn.Linear(14, 10) # input->hidden weights
+                # self.layer_l1 = torch.nn.Linear(9, 5) # hidden->output weights
+                self.layer_l1 = torch.nn.Linear(9, 30) # input->hidden weights
+                self.layer_l2 = torch.nn.Linear(30, 10) # input->hidden weights
                 self.layer_l3 = torch.nn.Linear(10, 1) # hidden->output weights
+                # self.layer_l4 = torch.nn.Linear(5, 1) # hidden->output weights
 
             def forward(self, x):
                 # x = self.layer_l1(x) # output 
-                x = torch.nn.functional.relu(self.layer_l1(x)) # hidden layer with tanh activation
+                x = torch.nn.functional.tanh(self.layer_l1(x)) # hidden layer with tanh activation
                 x = torch.nn.functional.relu(self.layer_l2(x)) # output with sigmoid activation
+                # x = torch.nn.functional.relu(self.layer_l3(x)) # output with sigmoid activation
                 x = self.layer_l3(x) # output 
                 return x
 
@@ -126,7 +128,7 @@ class Regressor():
         #######################################################################
 
         
-    def fit(self, x, y):
+    def fit(self, x, y, learning_rate = 0.01):
         """
         Regressor training function
 
@@ -143,11 +145,11 @@ class Regressor():
         #                       ** START OF YOUR CODE **
         #######################################################################
         X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
-        print("fit preprocessing",X.describe())
-        learning_rate = 0.01
+        # print("fit preprocessing",X.describe())
+        
 
         # criterion = torch.nn.CrossEntropyLoss()
-        criterion = torch.nn.functional.mse_loss
+        criterion = torch.nn.MSELoss()
         # optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
         optimizer = torch.optim.SGD(self.net.parameters(), lr=learning_rate)
 
