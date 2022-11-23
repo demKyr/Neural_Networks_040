@@ -1,16 +1,19 @@
 import torch
+import torch.nn as nn
 import pickle
 import numpy as np
 import pandas as pd
-import sys
 import torch.optim as optim
+from sklearn.metrics import mean_squared_error
+from sklearn import preprocessing
+from sklearn.model_selection import train_test_split, ParameterSampler
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
 class Regressor():
 
-    def __init__(self, x, nb_epoch = 1000):
+    def __init__(self, x, nb_epoch = 1000, batch_size = 8, learning_rate = 0.001, no_neurons = [50,10], activation_funs=["relu","relu"], loss_fn = nn.MSELoss()):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -23,53 +26,43 @@ class Regressor():
             - nb_epoch {int} -- number of epochs to train the network.
 
         """
-
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
+        self.lb = preprocessing.LabelBinarizer()
+        self.scaler_x = preprocessing.MinMaxScaler()
+        self.scaler_y = preprocessing.MinMaxScaler()
         X, _ = self._preprocessor(x, training = True)
-        # print("init preprocessing",X.describe())
         self.input_size = X.shape[1]
         self.output_size = 1
         self.nb_epoch = nb_epoch 
-
-        global Net
-
-        class Net(torch.nn.Module):
-            def __init__(self):
-                super().__init__()
-                # self.layer_l1 = torch.nn.Linear(self.input_size, self.output_size) # hidden->output weights
-                # self.layer_l1 = torch.nn.Linear(9, 5) # hidden->output weights
-                self.layer_l1 = torch.nn.Linear(9, 30) # input->hidden weights
-                self.layer_l2 = torch.nn.Linear(30, 10) # input->hidden weights
-                self.layer_l3 = torch.nn.Linear(10, 1) # hidden->output weights
-                # self.layer_l4 = torch.nn.Linear(5, 1) # hidden->output weights
-
-            def forward(self, x):
-                # x = self.layer_l1(x) # output 
-                x = torch.nn.functional.tanh(self.layer_l1(x)) # hidden layer with tanh activation
-                x = torch.nn.functional.relu(self.layer_l2(x)) # output with sigmoid activation
-                # x = torch.nn.functional.relu(self.layer_l3(x)) # output with sigmoid activation
-                x = self.layer_l3(x) # output 
-                return x
-
-
-        self.net = Net()
-        print(self.net)
-
-        # Replace this code with your own
-
-        self.trainset_min = []
-        self.trainset_max = []
-        self.trainset_mean = []
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
+        self.no_neurons = no_neurons
+        self.activation_funs = activation_funs
+        self.loss_fn = loss_fn
+        layers = []
+        prev_size = self.input_size
+        for size, act_fun in zip(self.no_neurons, self.activation_funs):
+            layers.append(nn.Linear(prev_size, size))
+            if(act_fun == "relu"):
+                layers.append(nn.ReLU())
+            elif(act_fun == "sigmoid"):
+                layers.append(nn.Sigmoid())
+            elif(act_fun == "tanh"):
+                layers.append(nn.Tanh())
+            prev_size = size
+        layers.append(nn.Linear(prev_size, self.output_size))
+        self.net = nn.Sequential(*layers)
 
         return
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
 
-    def _preprocessor(self, x, y = None, training = False):
+
+
+    def _preprocessor(self, x: pd.DataFrame, y = None, training = False):  
         """ 
         Preprocess input of the network.
           
@@ -87,47 +80,39 @@ class Regressor():
               size (batch_size, 1).
             
         """
-
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        x_copy = x.copy()
 
-        # Mapping of string values to integers
-        ocean_proximity_mapping = { 'INLAND':0, '<1H OCEAN':1, 'NEAR OCEAN':2, 'NEAR BAY':3, 'ISLAND':4 }
-        x_copy["ocean_proximity"] = x_copy["ocean_proximity"].map(ocean_proximity_mapping)
+        # Fill nan values with the next valid value for x and y
+        x = x.fillna(method = "backfill")
+        if isinstance(y, pd.DataFrame):
+            y = y.fillna(method="backfill")
 
-        # if using train set save normalization parameters
-        if(training):
-            self.trainset_min = x_copy.min()
-            self.trainset_max = x_copy.max()
-            self.trainset_mean = x_copy.mean()
+        # save the parameters for one hot encoding for column ocean_proximity
+        if training:
+            self.lb.fit(x.loc[:,"ocean_proximity"])
 
-        # Fill any empty values with mean values as calculated using train set
-        for col in x_copy.columns:
-            x_copy[col].fillna(self.trainset_mean[col], inplace=True)
+        # replace ocean_proximity column with one hot encoding vectors
+        one_hot_encoding_vectors = self.lb.transform(x.loc[:,"ocean_proximity"])
+        x = x.drop(columns = ["ocean_proximity"])
+        one_hot_encoding_df = pd.DataFrame(one_hot_encoding_vectors, columns=self.lb.classes_, index=x.index)
+        x = x.join(one_hot_encoding_df)
 
-        # Normalize values using training set's min and max values
-        def min_max_norm(x_in,col_id):
-            return ((x_in - self.trainset_min[col_id]) / (self.trainset_max[col_id] - self.trainset_min[col_id]))
-        for col_id,col_name in enumerate(x_copy.columns):
-            x_copy[col_name] = x_copy[col_name].apply(min_max_norm, col_id=col_id)
+        # save the parameters for min-max scalers
+        if training: 
+            self.scaler_x.fit(x)
+            if isinstance(y, pd.DataFrame):
+                self.scaler_y.fit(y)
 
-        # for col in x.columns:
-        #     print(col)
-        #     print(x[col].unique())
-        # print(self.trainset_min)
-        # print(self.trainset_max)
-        # print(np.where(pd.isnull(x)))
-        # print(x["ocean_proximity"].unique())
+        # normalise x and y using scalers
+        x = self.scaler_x.transform(x)
+        if isinstance(y, pd.DataFrame):
+            y_arr = self.scaler_y.transform(y)
 
-        # Return preprocessed x and y, return None for y if it was None
-        return x_copy, (y if isinstance(y, pd.DataFrame) else None)
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
+        return torch.tensor(x).float(), (torch.tensor(y_arr).float() if isinstance(y, pd.DataFrame) else None)
 
-        
+
     def fit(self, x, y, learning_rate = 0.01):
         """
         Regressor training function
@@ -144,68 +129,22 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        X, Y = self._preprocessor(x, y = y, training = True) # Do not forget
-        # print("fit preprocessing",X.describe())
+        X_tensor, Y_tensor = self._preprocessor(x, y = y, training = True) 
         
-
-        # criterion = torch.nn.CrossEntropyLoss()
         criterion = torch.nn.MSELoss()
-        # optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
         optimizer = torch.optim.SGD(self.net.parameters(), lr=learning_rate)
 
-        # batch_size = 4
-        # trainloader = torch.utils.data.DataLoader(X, batch_size=batch_size,
-        #                                   shuffle=True, num_workers=2)
-        X_tensor = torch.tensor(X.values, dtype=torch.float)
-        Y_tensor = torch.tensor(Y.values, dtype=torch.float)
-
+        datasets = torch.utils.data.TensorDataset(X_tensor, Y_tensor)    
+        train_iter = torch.utils.data.DataLoader(datasets, batch_size=self.batch_size, shuffle=True)
         
         for epoch in range(self.nb_epoch):
-            # running_loss = 0.0
-
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            # forward + backward + optimize
-            # print(X_tensor)
-            outputs = self.net(X_tensor)
-            # print(outputs)
-            loss = criterion(outputs, Y_tensor)
-            # print(Y_tensor)
-            loss.backward()
-            optimizer.step()
-
-            # print statistics
-            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))            
-            # running_loss += loss.item()
-            # if i % 2000 == 1999:    # print every 2000 mini-batches
-            #     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
-            #     running_loss = 0.0
-
-
-
-
-        # for epoch in range(2):  # loop over the dataset multiple times
-        #     running_loss = 0.0
-        #     for i, data in enumerate(trainloader):
-        #         # get the inputs; data is a list of [inputs, labels]
-        #         inputs, labels = data
-
-        #         # zero the parameter gradients
-        #         optimizer.zero_grad()
-
-        #         # forward + backward + optimize
-        #         outputs = self.net(inputs)
-        #         loss = criterion(outputs, labels)
-        #         loss.backward()
-        #         optimizer.step()
-
-        #         # print statistics
-        #         running_loss += loss.item()
-        #         if i % 2000 == 1999:    # print every 2000 mini-batches
-        #             print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
-        #             running_loss = 0.0
-
+            for X_tensor_batch, Y_tensor_batch in train_iter:
+                optimizer.zero_grad()
+                outputs = self.net(X_tensor_batch)
+                loss = criterion(outputs, Y_tensor_batch)
+                loss.backward()
+                optimizer.step()
+            # print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))            
 
         return self
 
@@ -230,13 +169,10 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-
-        X, _ = self._preprocessor(x, training = False) # Do not forget
-        print("predict preprocessing",X.describe())
-        X_tensor = torch.tensor(X.values, dtype=torch.float)
-        preds = self.net(X_tensor)
+        X_tensor, _ = self._preprocessor(x, training = False) # Do not forget
+        with torch.no_grad():
+            preds = self.net(X_tensor)
         return(preds.detach().numpy())
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -254,20 +190,18 @@ class Regressor():
             {float} -- Quantification of the efficiency of the model.
 
         """
-
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        # X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
         preds = self.predict(x)
-        criterion = torch.nn.functional.mse_loss
-        y_tensor = torch.tensor(y.values, dtype=torch.float)
         preds_tensor = torch.tensor(preds, dtype=torch.float)
-        loss = criterion(preds_tensor, y_tensor)
-        print(y_tensor)
-        print(preds_tensor)
-        return(loss.item())
-        # return 0 # Replace this code with your own
+        _, Y = self._preprocessor(x, y = y, training = False) # Do not forget
+        
+        preds_rescaled = self.scaler_y.inverse_transform(preds_tensor.detach().numpy())
+        Y_rescaled = self.scaler_y.inverse_transform(Y)
+        loss = np.sqrt(mean_squared_error(preds_rescaled, Y_rescaled))
+
+        return(loss)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -295,7 +229,7 @@ def load_regressor():
 
 
 
-def RegressorHyperParameterSearch(): 
+def RegressorHyperParameterSearch(x_train, y_train, x_val, y_val): 
     # Ensure to add whatever inputs you deem necessary to this function
     """
     Performs a hyper-parameter for fine-tuning the regressor implemented 
@@ -308,13 +242,32 @@ def RegressorHyperParameterSearch():
         The function should return your optimised hyper-parameters. 
 
     """
-
     #######################################################################
     #                       ** START OF YOUR CODE **
     #######################################################################
+    best_params = {}
+    param_vals = {}
+    best_error = 1e10
 
-    return  # Return the chosen hyper parameters
+    param_vals["nb_epoch"] = [1] # [40, 50 , 60]
+    param_vals["batch_size"] = [8, 16]
+    param_vals["learning_rate"] = [0.01, 0.001, 0.0001]
+    param_vals["no_neurons"] = [[50, 10], [30, 20]]
+    param_vals["activation_funs"] = [["relu","relu"],["sigmoid","relu"]]
+    param_vals["loss_fn"] = [nn.MSELoss(), nn.CrossEntropyLoss()]
 
+    for params in ParameterSampler(param_vals, n_iter = 5, random_state=77):
+        regressor = Regressor(x_train, **params)
+        print(params)
+        regressor.fit(x_train, y_train)
+        error = regressor.score(x_val, y_val)
+        print("\nRegressor error: {}\n".format(error))
+
+        if(error < best_error):
+            best_error = error
+            best_params = params
+
+    return best_params
     #######################################################################
     #                       ** END OF YOUR CODE **
     #######################################################################
@@ -331,60 +284,36 @@ def example_main():
     data = pd.read_csv("housing.csv") 
 
     # Splitting input and output
-    x_train = data.loc[:, data.columns != output_label]
-    y_train = data.loc[:, [output_label]]
+    x = data.loc[:, data.columns != output_label]
+    y = data.loc[:, [output_label]]
+
+    x_train, x_rest, y_train, y_rest = train_test_split(x, y, test_size=0.2, random_state=77)
+    x_val, x_test, y_val, y_test = train_test_split(x_rest, y_rest, test_size=0.5, random_state=77)
 
     # Training
     # This example trains on the whole available dataset. 
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
-    regressor = Regressor(x_train, nb_epoch = 1000)
-    regressor.fit(x_train, y_train)
-    save_regressor(regressor)
 
+    # regressor = Regressor(x_train, nb_epoch = 60, no_neurons = [50,30,10], activation_funs=["sigmoid","relu","relu"])
+    # print(regressor.net)
+    # regressor.fit(x_train, y_train)
+
+    best_params = RegressorHyperParameterSearch(x_train, y_train, x_val, y_val)
+
+    regressor = Regressor(x_train, **best_params)
+    print(best_params)
+    regressor.fit(x_train, y_train)
+
+    save_regressor(regressor)
     loaded_regressor = load_regressor()
 
     # Error
-    error = loaded_regressor.score(x_train, y_train)
+    error = loaded_regressor.score(x_test, y_test)
     print("\nRegressor error: {}\n".format(error))
 
 
 if __name__ == "__main__":
     example_main()
 
-    # # print(sys.executable)
-
-    # output_label = "median_house_value"
-
-    # # Use pandas to read CSV data as it contains various object types
-    # # Feel free to use another CSV reader tool
-    # # But remember that LabTS tests take Pandas DataFrame as inputs
-    # data = pd.read_csv("housing.csv") 
-
-    # # print(data.head())
-
-    # # Splitting input and output
-    # x_train = data.loc[:, data.columns != output_label]
-    # y_train = data.loc[:, [output_label]]
-
-
-    # # Training
-    # # This example trains on the whole available dataset. 
-    # # You probably want to separate some held-out data 
-    # # to make sure the model isn't overfitting
-    # regressor = Regressor(x_train, nb_epoch = 100000)
-    # regressor.fit(x_train, y_train)
-
-
-    # X, Y = regressor._preprocessor(x_train, y = y_train, training = True) # Do not forget
-    # X_tensor = torch.tensor(X.values, dtype=torch.float)
-    # print(regressor.net(X_tensor))
-    # print(Y)
-
-
-    # # save_regressor(regressor)
-
-    # # # Error
-    # # error = regressor.score(x_train, y_train)
-    # # print("\nRegressor error: {}\n".format(error))
 
