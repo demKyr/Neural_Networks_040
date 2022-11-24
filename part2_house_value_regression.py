@@ -147,7 +147,7 @@ class Regressor():
                 loss = criterion(outputs, Y_tensor_batch)
                 loss.backward()
                 optimizer.step()
-            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))
+            # print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))
             if(final_fit):
                 final_fit_error_train.append(self.score(x_train, y_train))
                 final_fit_error_test.append(self.score(x_test, y_test))
@@ -173,14 +173,14 @@ class Regressor():
             {np.ndarray} -- Predicted value for the given input (batch_size, 1).
 
         """
-
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
         X_tensor, _ = self._preprocessor(x, training = False) # Do not forget
         with torch.no_grad():
             preds = self.net(X_tensor)
-        preds_rescaled = self.scaler_y.inverse_transform(preds.detach().numpy())
+        preds_arr = preds.detach().numpy()
+        preds_rescaled = self.scaler_y.inverse_transform(preds_arr)
         return(preds_rescaled)
         #######################################################################
         #                       ** END OF YOUR CODE **
@@ -205,8 +205,10 @@ class Regressor():
         X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
         # preds = self.predict(x)
         # preds_tensor = torch.tensor(preds, dtype=torch.float)
-        preds = self.net(X)
-        preds_rescaled = self.scaler_y.inverse_transform(preds.detach().numpy())
+        with torch.no_grad():
+            preds = self.net(X)
+        preds_arr = preds.detach().numpy()
+        preds_rescaled = self.scaler_y.inverse_transform(preds_arr)
         Y_rescaled = self.scaler_y.inverse_transform(Y)
         loss = np.sqrt(mean_squared_error(preds_rescaled, Y_rescaled))
 
@@ -392,7 +394,7 @@ def example_main():
     # save_regressor(regressor)
     loaded_regressor = load_regressor()
 
-    error = loaded_regressor.score(x, y)
+    error = loaded_regressor.score(x_test, y_test)
     print("\nRegressor error: {}\n".format(error))
 
 
