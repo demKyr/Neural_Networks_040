@@ -7,13 +7,14 @@ import torch.optim as optim
 from sklearn.metrics import mean_squared_error
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split, ParameterSampler
+import matplotlib.pyplot as plt
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
 class Regressor():
 
-    def __init__(self, x, nb_epoch = 1000, batch_size = 8, learning_rate = 0.001, no_neurons = [50,10], activation_funs=["relu","relu"], loss_fn = nn.MSELoss()):
+    def __init__(self, x, nb_epoch = 90, batch_size = 4, learning_rate = 0.02, no_neurons = [100, 200, 20], activation_funs=["tanh","relu","relu"], loss_fn = nn.CrossEntropyLoss()):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
@@ -62,7 +63,7 @@ class Regressor():
 
 
 
-    def _preprocessor(self, x: pd.DataFrame, y = None, training = False):  
+    def _preprocessor(self, x, y = None, training = False):  
         """ 
         Preprocess input of the network.
           
@@ -113,7 +114,7 @@ class Regressor():
         return torch.tensor(x).float(), (torch.tensor(y_arr).float() if isinstance(y, pd.DataFrame) else None)
 
 
-    def fit(self, x, y, learning_rate = 0.01):
+    def fit(self, x, y, final_fit=False, x_train=None, y_train=None, x_test=None , y_test=None):
         """
         Regressor training function
 
@@ -129,10 +130,12 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
+        final_fit_error_train = []
+        final_fit_error_test = []
         X_tensor, Y_tensor = self._preprocessor(x, y = y, training = True) 
         
         criterion = torch.nn.MSELoss()
-        optimizer = torch.optim.SGD(self.net.parameters(), lr=learning_rate)
+        optimizer = torch.optim.SGD(self.net.parameters(), lr=self.learning_rate)
 
         datasets = torch.utils.data.TensorDataset(X_tensor, Y_tensor)    
         train_iter = torch.utils.data.DataLoader(datasets, batch_size=self.batch_size, shuffle=True)
@@ -144,10 +147,15 @@ class Regressor():
                 loss = criterion(outputs, Y_tensor_batch)
                 loss.backward()
                 optimizer.step()
-            # print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))            
+            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))
+            if(final_fit):
+                final_fit_error_train.append(self.score(x_train, y_train))
+                final_fit_error_test.append(self.score(x_test, y_test))
+
+        if(final_fit):
+            return(self, final_fit_error_train, final_fit_error_test)
 
         return self
-
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -249,29 +257,71 @@ def RegressorHyperParameterSearch(x_train, y_train, x_val, y_val):
     param_vals = {}
     best_error = 1e10
 
-    param_vals["nb_epoch"] = [1] # [40, 50 , 60]
-    param_vals["batch_size"] = [8, 16]
+    param_vals["nb_epoch"] = [30, 50 , 100]
+    param_vals["batch_size"] = [8, 128, 1024]
     param_vals["learning_rate"] = [0.01, 0.001, 0.0001]
-    param_vals["no_neurons"] = [[50, 10], [30, 20]]
-    param_vals["activation_funs"] = [["relu","relu"],["sigmoid","relu"]]
+    param_vals["no_neurons"] = [[50, 10], [6, 8], [50, 30, 10], [100, 200, 20], [30, 60, 40, 20], [100, 200, 50, 20]]
+    param_vals["activation_funs"] = [["relu","relu"],["sigmoid","relu"],["tanh","relu"],["sigmoid","relu","relu"],["relu","relu","relu"],["tanh","relu","relu"],["relu","relu","relu","relu"],["tanh","tanh","tanh","tanh"]]
     param_vals["loss_fn"] = [nn.MSELoss(), nn.CrossEntropyLoss()]
 
-    for params in ParameterSampler(param_vals, n_iter = 5, random_state=77):
-        regressor = Regressor(x_train, **params)
-        print(params)
-        regressor.fit(x_train, y_train)
-        error = regressor.score(x_val, y_val)
-        print("\nRegressor error: {}\n".format(error))
+    for params in ParameterSampler(param_vals, n_iter = 100, random_state=77):
+        if(len(params["no_neurons"]) == len(params["activation_funs"])):
+            regressor = Regressor(x_train, **params)
+            print(params)
+            regressor.fit(x_train, y_train)
+            error = regressor.score(x_val, y_val)
+            print("\nRegressor error: {}\n".format(error))
 
-        if(error < best_error):
-            best_error = error
-            best_params = params
+            if(error < best_error):
+                best_error = error
+                best_params = params
 
     return best_params
     #######################################################################
     #                       ** END OF YOUR CODE **
     #######################################################################
 
+
+def RegressorHyperParameterSearch_stage2_and_plot(best_params,x_train,y_train,x_val,y_val):
+
+    param_vals = {}
+    param_vals["nb_epoch"] = [30, 50, 70, 90, 110, 130, 150, 170]
+    param_vals["batch_size"] = [4, 8, 16, 32]
+    param_vals["learning_rate"] = [0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+    param_vals["no_neurons"] = [[50,10], [50,30], [30,10], [100, 200, 20], [150,220,30], [80, 150, 15]]
+
+    for param_name in param_vals.keys():
+        x_axis = []
+        y_axis = []
+        best_error = 1e10
+
+        for param in param_vals[param_name]:
+            best_params[param_name] = param
+            best_params["activation_funs"] = ["relu"] * len(best_params["no_neurons"])
+            regressor = Regressor(x_train, **best_params)
+            regressor.fit(x_train, y_train)
+            error = regressor.score(x_val, y_val)
+            y_axis.append(error)
+            x_axis.append(str(param))
+            if(error < best_error):
+                best_error = error
+                best_param = param
+        
+        best_params[param_name] = best_param
+        best_params["activation_funs"] = ["relu"] * len(best_params["no_neurons"])
+        plt.plot(x_axis,y_axis)
+        plt.xlabel(param_name)
+        plt.ylabel('loss')
+        plt.title(param_name + ' performance')
+        plt.xticks(rotation=45, ha='right')
+        plt.show()
+
+    return best_params
+    
+
+
+
+    
 
 
 def example_main():
@@ -295,25 +345,54 @@ def example_main():
     # You probably want to separate some held-out data 
     # to make sure the model isn't overfitting
 
+    # Sample model training
     # regressor = Regressor(x_train, nb_epoch = 60, no_neurons = [50,30,10], activation_funs=["sigmoid","relu","relu"])
     # print(regressor.net)
     # regressor.fit(x_train, y_train)
 
-    best_params = RegressorHyperParameterSearch(x_train, y_train, x_val, y_val)
+    #######################################################################
+    #    ** 1ST STAGE (EXPLORATION STAGE) OF HYPERPARAMETER TUNING **     *
+    #######################################################################
+    # best_params = RegressorHyperParameterSearch(x_train, y_train, x_val, y_val)
+    #######################################################################
 
-    regressor = Regressor(x_train, **best_params)
-    print(best_params)
-    regressor.fit(x_train, y_train)
+    #######################################################################
+    #    ** 2ND STAGE (EXPLOITATION STAGE) OF HYPERPARAMETER TUNING **    *
+    #######################################################################
+    # it uses best_params as calculated in the 1st stage
+    # best_params = {
+    #     "nb_epoch" : 50,
+    #     "batch_size" :  8,
+    #     "learning_rate" :  0.01,
+    #     "no_neurons" :  [100,200, 20],
+    #     "activation_funs" :  ["tanh","relu","relu"],
+    #     "loss_fn" : nn.CrossEntropyLoss()
+    # }
+    # best_params = RegressorHyperParameterSearch_stage2_and_plot(best_params,x_train,y_train,x_val,y_val)
+    #######################################################################
+
+
+    # Final evaluation of the best model
+    regressor = Regressor(x_train)
+    # regressor.fit(x_train, y_train)
+    regressor,train_error,test_error = regressor.fit(x_train, y_train, final_fit=True, x_train=x_train, y_train=y_train, x_test=x_test , y_test=y_test)
+
+    plt.scatter(np.arange(len(train_error)),train_error,alpha=0.7)
+    plt.scatter(np.arange(len(test_error)),test_error,alpha=0.7)
+    plt.legend(["Train set", "Test set"])
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Training & test set error')
+    plt.show()
+
 
     save_regressor(regressor)
     loaded_regressor = load_regressor()
 
-    # Error
     error = loaded_regressor.score(x_test, y_test)
     print("\nRegressor error: {}\n".format(error))
 
 
 if __name__ == "__main__":
     example_main()
-
 
