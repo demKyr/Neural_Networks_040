@@ -7,7 +7,7 @@ import torch.optim as optim
 from sklearn.metrics import mean_squared_error
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split, ParameterSampler
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -147,7 +147,7 @@ class Regressor():
                 loss = criterion(outputs, Y_tensor_batch)
                 loss.backward()
                 optimizer.step()
-            # print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))
+            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))
             if(final_fit):
                 final_fit_error_train.append(self.score(x_train, y_train))
                 final_fit_error_test.append(self.score(x_test, y_test))
@@ -309,12 +309,12 @@ def RegressorHyperParameterSearch_stage2_and_plot(best_params,x_train,y_train,x_
         
         best_params[param_name] = best_param
         best_params["activation_funs"] = ["relu"] * len(best_params["no_neurons"])
-        # plt.plot(x_axis,y_axis)
-        # plt.xlabel(param_name)
-        # plt.ylabel('loss')
-        # plt.title(param_name + ' performance')
-        # plt.xticks(rotation=45, ha='right')
-        # plt.show()
+        plt.plot(x_axis,y_axis)
+        plt.xlabel(param_name)
+        plt.ylabel('loss')
+        plt.title(param_name + ' performance')
+        plt.xticks(rotation=45, ha='right')
+        plt.show()
 
     return best_params
     
@@ -353,7 +353,7 @@ def example_main():
     #######################################################################
     #    ** 1ST STAGE (EXPLORATION STAGE) OF HYPERPARAMETER TUNING **     *
     #######################################################################
-    best_params = RegressorHyperParameterSearch(x_train, y_train, x_val, y_val)
+    # best_params = RegressorHyperParameterSearch(x_train, y_train, x_val, y_val)
     #######################################################################
 
     #######################################################################
@@ -368,7 +368,7 @@ def example_main():
     #     "activation_funs" :  ["tanh","relu","relu"],
     #     "loss_fn" : nn.CrossEntropyLoss()
     # }
-    best_params = RegressorHyperParameterSearch_stage2_and_plot(best_params,x_train,y_train,x_val,y_val)
+    # best_params = RegressorHyperParameterSearch_stage2_and_plot(best_params,x_train,y_train,x_val,y_val)
     #######################################################################
 
 
