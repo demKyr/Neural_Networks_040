@@ -147,7 +147,7 @@ class Regressor():
                 loss = criterion(outputs, Y_tensor_batch)
                 loss.backward()
                 optimizer.step()
-            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))
+            # print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, self.nb_epoch, loss.item()))
             if(final_fit):
                 final_fit_error_train.append(self.score(x_train, y_train))
                 final_fit_error_test.append(self.score(x_test, y_test))
