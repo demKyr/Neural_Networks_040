@@ -7,7 +7,7 @@ import torch.optim as optim
 from sklearn.metrics import mean_squared_error
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split, ParameterSampler
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -282,41 +282,41 @@ def RegressorHyperParameterSearch(x_train, y_train, x_val, y_val):
     #######################################################################
 
 
-def RegressorHyperParameterSearch_stage2_and_plot(best_params,x_train,y_train,x_val,y_val):
+# def RegressorHyperParameterSearch_stage2_and_plot(best_params,x_train,y_train,x_val,y_val):
 
-    param_vals = {}
-    param_vals["nb_epoch"] = [30, 50, 70, 90, 110, 130, 150, 170]
-    param_vals["batch_size"] = [4, 8, 16, 32]
-    param_vals["learning_rate"] = [0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
-    param_vals["no_neurons"] = [[50,10], [50,30], [30,10], [100, 200, 20], [150,220,30], [80, 150, 15]]
+#     param_vals = {}
+#     param_vals["nb_epoch"] = [30, 50, 70, 90, 110, 130, 150, 170]
+#     param_vals["batch_size"] = [4, 8, 16, 32]
+#     param_vals["learning_rate"] = [0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+#     param_vals["no_neurons"] = [[50,10], [50,30], [30,10], [100, 200, 20], [150,220,30], [80, 150, 15]]
 
-    for param_name in param_vals.keys():
-        x_axis = []
-        y_axis = []
-        best_error = 1e10
+#     for param_name in param_vals.keys():
+#         x_axis = []
+#         y_axis = []
+#         best_error = 1e10
 
-        for param in param_vals[param_name]:
-            best_params[param_name] = param
-            best_params["activation_funs"] = ["relu"] * len(best_params["no_neurons"])
-            regressor = Regressor(x_train, **best_params)
-            regressor.fit(x_train, y_train)
-            error = regressor.score(x_val, y_val)
-            y_axis.append(error)
-            x_axis.append(str(param))
-            if(error < best_error):
-                best_error = error
-                best_param = param
+#         for param in param_vals[param_name]:
+#             best_params[param_name] = param
+#             best_params["activation_funs"] = ["relu"] * len(best_params["no_neurons"])
+#             regressor = Regressor(x_train, **best_params)
+#             regressor.fit(x_train, y_train)
+#             error = regressor.score(x_val, y_val)
+#             y_axis.append(error)
+#             x_axis.append(str(param))
+#             if(error < best_error):
+#                 best_error = error
+#                 best_param = param
         
-        best_params[param_name] = best_param
-        best_params["activation_funs"] = ["relu"] * len(best_params["no_neurons"])
-        plt.plot(x_axis,y_axis)
-        plt.xlabel(param_name)
-        plt.ylabel('loss')
-        plt.title(param_name + ' performance')
-        plt.xticks(rotation=45, ha='right')
-        plt.show()
+#         best_params[param_name] = best_param
+#         best_params["activation_funs"] = ["relu"] * len(best_params["no_neurons"])
+#         plt.plot(x_axis,y_axis)
+#         plt.xlabel(param_name)
+#         plt.ylabel('loss')
+#         plt.title(param_name + ' performance')
+#         plt.xticks(rotation=45, ha='right')
+#         plt.show()
 
-    return best_params
+#     return best_params
     
 
 
@@ -373,20 +373,19 @@ def example_main():
 
 
     # Final evaluation of the best model
-    regressor = Regressor(x_train)
-    # regressor.fit(x_train, y_train)
-    regressor,train_error,test_error = regressor.fit(x_train, y_train, final_fit=True, x_train=x_train, y_train=y_train, x_test=x_test , y_test=y_test)
+    # regressor = Regressor(x_train)
+    # regressor,train_error,test_error = regressor.fit(x_train, y_train, final_fit=True, x_train=x_train, y_train=y_train, x_test=x_test , y_test=y_test)
 
-    plt.scatter(np.arange(len(train_error)),train_error,alpha=0.7)
-    plt.scatter(np.arange(len(test_error)),test_error,alpha=0.7)
-    plt.legend(["Train set", "Test set"])
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.title('Training & test set error')
-    plt.show()
+    # plt.scatter(np.arange(len(train_error)),train_error,alpha=0.7)
+    # plt.scatter(np.arange(len(test_error)),test_error,alpha=0.7)
+    # plt.legend(["Train set", "Test set"])
+    # plt.xlabel('Epochs')
+    # plt.ylabel('Loss')
+    # plt.title('Training & test set error')
+    # plt.show()
 
 
-    save_regressor(regressor)
+    # save_regressor(regressor)
     loaded_regressor = load_regressor()
 
     error = loaded_regressor.score(x_test, y_test)
