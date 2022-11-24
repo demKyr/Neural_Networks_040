@@ -373,8 +373,8 @@ def example_main():
 
 
     # Final evaluation of the best model
-    regressor = Regressor(x_train)
-    regressor,train_error,test_error = regressor.fit(x_train, y_train, final_fit=True, x_train=x_train, y_train=y_train, x_test=x_test , y_test=y_test)
+    # regressor = Regressor(x_train)
+    # regressor,train_error,test_error = regressor.fit(x_train, y_train, final_fit=True, x_train=x_train, y_train=y_train, x_test=x_test , y_test=y_test)
 
     # plt.scatter(np.arange(len(train_error)),train_error,alpha=0.7)
     # plt.scatter(np.arange(len(test_error)),test_error,alpha=0.7)
@@ -385,10 +385,13 @@ def example_main():
     # plt.show()
 
 
-    save_regressor(regressor)
+    # regressor = Regressor(x_train)
+    # regressor.fit(x_train, y_train)
+
+    # save_regressor(regressor)
     loaded_regressor = load_regressor()
 
-    error = loaded_regressor.score(x_test, y_test)
+    error = loaded_regressor.score(x, y)
     print("\nRegressor error: {}\n".format(error))
 
 
