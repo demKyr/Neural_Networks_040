@@ -14,7 +14,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 class Regressor():
 
-    def __init__(self, x, nb_epoch = 90, batch_size = 4, learning_rate = 0.02, no_neurons = [100, 200, 20], activation_funs=["tanh","relu","relu"], loss_fn = nn.CrossEntropyLoss()):
+    def __init__(self, x, nb_epoch = 90, batch_size = 4, learning_rate = 0.02, no_neurons = [100, 200, 20], activation_funs=["tanh","relu","relu"], loss_fn = nn.MSELoss()):
         # You can add any input parameters you need
         # Remember to set them with a default value for LabTS tests
         """ 
