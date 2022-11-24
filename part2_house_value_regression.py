@@ -180,7 +180,8 @@ class Regressor():
         X_tensor, _ = self._preprocessor(x, training = False) # Do not forget
         with torch.no_grad():
             preds = self.net(X_tensor)
-        return(preds.detach().numpy())
+        preds_rescaled = self.scaler_y.inverse_transform(preds.detach().numpy())
+        return(preds_rescaled)
         #######################################################################
         #                       ** END OF YOUR CODE **
         #######################################################################
@@ -201,11 +202,11 @@ class Regressor():
         #######################################################################
         #                       ** START OF YOUR CODE **
         #######################################################################
-        preds = self.predict(x)
-        preds_tensor = torch.tensor(preds, dtype=torch.float)
-        _, Y = self._preprocessor(x, y = y, training = False) # Do not forget
-        
-        preds_rescaled = self.scaler_y.inverse_transform(preds_tensor.detach().numpy())
+        X, Y = self._preprocessor(x, y = y, training = False) # Do not forget
+        # preds = self.predict(x)
+        # preds_tensor = torch.tensor(preds, dtype=torch.float)
+        preds = self.net(X)
+        preds_rescaled = self.scaler_y.inverse_transform(preds.detach().numpy())
         Y_rescaled = self.scaler_y.inverse_transform(Y)
         loss = np.sqrt(mean_squared_error(preds_rescaled, Y_rescaled))
 
